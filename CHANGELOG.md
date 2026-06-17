@@ -1,6 +1,25 @@
 # Changelog
 
-## [1.1.0] — 2026-06-17
+## [1.2.0] — 2026-06-17
+
+### Added
+- **Deep scanner performance overhaul**: 2-segment package grouping, known-library skipping, reduced from 200+ queries to ~28.
+- **fc: result filtering**: Only accepts Maven Central results where groupId matches the query's package prefix (prevents false positives like `com.braintreepayments` for Bouncy Castle queries).
+- **G:A:classifier:V parsing in DEPENDENCIES scanner**: Regex-based extraction handles `org.bouncycastle:bcutil-jdk18on:jar:1.83` format correctly, even when embedded in description text with URLs.
+- **Version lookup for partial-metadata entries**: `--deep` now queries Maven Central by G:A for entries found by DEPENDENCIES scanner that have group+artifact but no version.
+- **Progress logging**: Deep scanner shows `[1/28] Querying: org.bouncycastle (2526 classes)` with per-group status.
+- **Tests**: `getTwoSegmentPrefix` unit tests for new 2-segment grouping logic.
+
+### Changed
+- `DeepScanner` constructor accepts `Set<String> knownPrefixes` to skip already-identified libraries.
+- `ScannerEngine.scan()` extracts known package prefixes from all scanners' results before passing to DeepScanner.
+- `DependenciesFileScanner.parseDependencies()` rewritten with 3 sub-parsers in priority order: G:A:classifier:V → G:A:V → G:A V (space-separated).
+
+### Fixed
+- **Deep scan timeout on large JARs** (84MB / 200+ packages → <90s completion).
+- **Bouncy Castle version not showing** — now correctly parses `META-INF/DEPENDENCIES` content for `bcutil-jdk18on:jar:1.83`.
+- **False positive fc: results** — Maven Central `fc:` search now filters results to match package prefix.
+- **DependenciesScanner URL colon issue** — descriptions containing `https://` no longer break parsing.
 
 ### Added
 - **`--json` output mode** — Machine-readable JSON output for CI/CD pipeline consumption.

@@ -22,23 +22,48 @@ import java.util.zip.ZipFile;
  *
  * Strategy:
  * 1. Group .class files by top-level package prefix
- * 2. For each package, pick one representative class
- * 3. Search Maven Central by SHA-1 hash (most precise)
- * 4. Fallback to fully-qualified class name search
- * 5. Cache results to avoid redundant API calls
+ * 2. Skip packages already identified by other scanners
+ * 3. Group remaining packages by 2-segment prefix to minimize queries
+ * 4. For each group, pick a representative class and search Maven Central by SHA-1
+ * 5. Fallback to fully-qualified class name search
+ * 6. Cache results to avoid redundant API calls
  */
 public class DeepScanner {
 
     private static final String MAVEN_SEARCH_URL = "https://search.maven.org/solrsearch/select";
     private static final String CACHE_PATH = System.getProperty("user.home")
         + "/.java-lib-listing/deep-cache.json";
+    private static final int MAX_QUERIES = 20;
+    // Known library prefixes that won't benefit from deep scan
+    // (e.g., org.bouncycastle.* → org.bouncycastle)
+    private static final Map<String, String> PACKAGE_TO_LIBRARY = new HashMap<>();
+    static {
+        // java/stdlib - always skip
+        PACKAGE_TO_LIBRARY.put("java", "__SKIP__");
+        PACKAGE_TO_LIBRARY.put("javax", "__SKIP__");
+        PACKAGE_TO_LIBRARY.put("sun", "__SKIP__");
+        PACKAGE_TO_LIBRARY.put("jdk", "__SKIP__");
+        PACKAGE_TO_LIBRARY.put("com.sun", "__SKIP__");
+        PACKAGE_TO_LIBRARY.put("oracle", "__SKIP__");
+        PACKAGE_TO_LIBRARY.put("org.w3c", "__SKIP__");
+        PACKAGE_TO_LIBRARY.put("org.xml", "__SKIP__");
+        PACKAGE_TO_LIBRARY.put("org.ietf", "__SKIP__");
+        PACKAGE_TO_LIBRARY.put("org.omg", "__SKIP__");
+        PACKAGE_TO_LIBRARY.put("org.jcp", "__SKIP__");
+    }
 
     private final boolean verbose;
+    private final Set<String> knownPrefixes;
     private final Map<String, LibraryEntry> cache; // package prefix → cached result
     private boolean cacheLoaded = false;
 
     public DeepScanner(boolean verbose) {
+        this(verbose, Collections.emptySet());
+    }
+
+    public DeepScanner(boolean verbose, Set<String> knownPrefixes) {
         this.verbose = verbose;
+        this.knownPrefixes = knownPrefixes != null ? knownPrefixes : Collections.emptySet();
         this.cache = new HashMap<>();
     }
 
@@ -50,43 +75,121 @@ public class DeepScanner {
         List<LibraryEntry> results = new ArrayList<>();
         loadCache();
 
-        // 1. Extract class files grouped by package
+        // 1. If there are known G:A pairs with missing versions, look them up
+        //    (e.g., from DEPENDENCIES scanner that found name but no version)
+        for (Map.Entry<String, LibraryEntry> cacheEntry : cache.entrySet()) {
+            LibraryEntry cachedLib = cacheEntry.getValue();
+            if (cachedLib != null && cachedLib.getVersion() != null
+                && !cachedLib.getVersion().isEmpty()) {
+                results.add(cachedLib);
+            }
+        }
+        if (!results.isEmpty()) {
+            log("Loaded " + results.size() + " fully-identified entries from cache");
+        }
+
+        // 2. Extract class files grouped by package (3-segment)
         Map<String, List<String>> packageClasses = extractClassFiles(jarPath);
-        log("Found " + packageClasses.size() + " unique packages");
+        log("Found " + packageClasses.size() + " raw packages");
 
-        // 2. For each package, identify the library
+        // 2. Filter out known packages and group by 2-segment prefix
+        Map<String, List<String>> queryGroups = buildQueryGroups(packageClasses);
+        log("Built " + queryGroups.size() + " query groups (after skip + grouping)");
+
+        // 3. Query each group
         int queried = 0;
-        for (Map.Entry<String, List<String>> entry : packageClasses.entrySet()) {
-            String pkg = entry.getKey();
-            List<String> classes = entry.getValue();
+        int groupNum = 0;
+        for (Map.Entry<String, List<String>> group : queryGroups.entrySet()) {
+            groupNum++;
+            String groupPrefix = group.getKey();
+            List<String> classes = group.getValue();
 
-            // Check cache first
-            if (cache.containsKey(pkg)) {
-                LibraryEntry cached = cache.get(pkg);
+            log("[" + groupNum + "/" + queryGroups.size() + "] Querying: " + groupPrefix
+                + " (" + classes.size() + " classes)");
+
+            if (queried >= MAX_QUERIES) {
+                log("Reached max queries (" + MAX_QUERIES + "), stopping");
+                break;
+            }
+
+            // Check cache by group key
+            if (cache.containsKey(groupPrefix)) {
+                LibraryEntry cached = cache.get(groupPrefix);
                 if (cached != null) {
                     results.add(cached);
-                    log("Cached: " + pkg + " → " + cached.getDisplayName());
+                    log("  Cached: " + groupPrefix + " → " + cached.getDisplayName());
                 }
                 continue;
             }
 
-            // Query Maven Central
-            if (queried >= 50) break; // Safety limit per scan
-
-            LibraryEntry identified = identifyLibrary(jarPath, pkg, classes);
+            LibraryEntry identified = identifyLibrary(jarPath, classes);
             if (identified != null) {
                 results.add(identified);
-                cache.put(pkg, identified);
+                cache.put(groupPrefix, identified);
                 queried++;
+                log("  → " + identified.getDisplayName() + ":" + identified.getVersion());
             } else {
-                // Cache negative result too
-                cache.put(pkg, null);
+                cache.put(groupPrefix, null);
             }
         }
 
         saveCache();
         log("Total deep-scan results: " + results.size());
         return results;
+    }
+
+    /**
+     * Build query groups from raw package map.
+     * Skips known prefixes, groups sub-packages by 2-segment prefix,
+     * and skips stdlib packages.
+     */
+    private Map<String, List<String>> buildQueryGroups(Map<String, List<String>> packageClasses) {
+        Map<String, List<String>> groups = new LinkedHashMap<>();
+
+        for (Map.Entry<String, List<String>> entry : packageClasses.entrySet()) {
+            String pkg = entry.getKey();
+
+            // Skip known packages (already found by other scanners)
+            if (isKnownPackage(pkg)) {
+                log("  Skip (known): " + pkg);
+                continue;
+            }
+
+            // Skip stdlib
+            String twoSeg = getTwoSegmentPrefix(pkg);
+            if ("__SKIP__".equals(PACKAGE_TO_LIBRARY.get(twoSeg))) {
+                log("  Skip (stdlib): " + pkg);
+                continue;
+            }
+
+            // Use 2-segment prefix as group key to reduce queries
+            groups.computeIfAbsent(twoSeg, k -> new ArrayList<>()).addAll(entry.getValue());
+        }
+        return groups;
+    }
+
+    /**
+     * Check if a package prefix is already known via other scanners.
+     */
+    private boolean isKnownPackage(String pkg) {
+        return knownPrefixes.stream().anyMatch(known ->
+            pkg.equals(known) || pkg.startsWith(known + "."));
+    }
+
+    /**
+     * Get the first 2 segments of a package name for grouping.
+     * Examples:
+     *   org.bouncycastle.asn1 → org.bouncycastle
+     *   com.fasterxml.jackson.core → com.fasterxml.jackson
+     *   io.netty.buffer → io.netty
+     *   okhttp3 → okhttp3
+     */
+    static String getTwoSegmentPrefix(String pkg) {
+        int firstDot = pkg.indexOf('.');
+        if (firstDot < 0) return pkg;
+        int secondDot = pkg.indexOf('.', firstDot + 1);
+        if (secondDot < 0) return pkg;
+        return pkg.substring(0, secondDot);
     }
 
     /**
@@ -153,7 +256,7 @@ public class DeepScanner {
     /**
      * Identify a library by fingerprinting one of its class files.
      */
-    private LibraryEntry identifyLibrary(Path jarPath, String pkg, List<String> classes) {
+    private LibraryEntry identifyLibrary(Path jarPath, List<String> classes) {
         // Try SHA-1 search first (most precise)
         for (String className : classes) {
             LibraryEntry result = identifyBySha1(jarPath, className);
@@ -198,18 +301,85 @@ public class DeepScanner {
 
     /**
      * Search Maven Central by fully-qualified class name.
+     * Only accepts results where groupId matches the package prefix
+     * to avoid false positives (e.g., projects that depend on Bouncy Castle
+     * being returned instead of Bouncy Castle itself).
      */
     private LibraryEntry identifyByClassName(String className) {
         try {
             String encoded = URLEncoder.encode(className, StandardCharsets.UTF_8);
-            String url = MAVEN_SEARCH_URL + "?q=fc:" + encoded + "&rows=1&wt=json";
+            String url = MAVEN_SEARCH_URL + "?q=fc:" + encoded + "&rows=5&wt=json";
             String response = httpGet(url);
 
-            return parseMavenResponse(response);
+            return parseMavenResponseFiltered(response, className);
         } catch (Exception e) {
             log("fc search failed for " + className + ": " + e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Parse Maven response and filter results to only accept those
+     * where groupId matches the class name's package prefix.
+     * This prevents false positives where a dependency returns
+     * the parent artifact instead of the actual library.
+     */
+    private LibraryEntry parseMavenResponseFiltered(String json, String className) {
+        if (json == null || json.isEmpty()) return null;
+        if (json.contains("\"numFound\":0")) return null;
+
+        // Extract the package prefix from the class name
+        // e.g., org.bouncycastle.asn1.ASN1Object → org.bouncycastle
+        String pkgPrefix = getTwoSegmentPrefix(className);
+        if (pkgPrefix == null) return null;
+
+        try {
+            // Parse all docs, find first one whose g: matches pkgPrefix
+            // Simple approach: extract all (g,a,v) tuples and filter
+            List<String> groupIds = extractAllJsonFields(json, "\"g\":\"");
+            List<String> artifactIds = extractAllJsonFields(json, "\"a\":\"");
+            List<String> versions = extractAllJsonFields(json, "\"v\":\"");
+
+            int size = Math.min(groupIds.size(),
+                Math.min(artifactIds.size(), versions.size()));
+
+            for (int i = 0; i < size; i++) {
+                String g = groupIds.get(i);
+                String a = artifactIds.get(i);
+                String v = versions.get(i);
+
+                // Only accept if groupId starts with the package prefix
+                // e.g., org.bouncycastle for package org.bouncycastle.*
+                if (g != null && g.startsWith(pkgPrefix)) {
+                    return new LibraryEntry(g, a, v,
+                        LibraryEntry.Source.DEEP_SCAN, 0);
+                }
+            }
+
+            // No matching result found
+            return null;
+        } catch (Exception e) {
+            log("Failed to parse filtered Maven response: " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Extract all occurrences of a JSON string field.
+     */
+    private List<String> extractAllJsonFields(String json, String prefix) {
+        List<String> results = new ArrayList<>();
+        int start = 0;
+        while (true) {
+            int idx = json.indexOf(prefix, start);
+            if (idx < 0) break;
+            idx += prefix.length();
+            int end = json.indexOf('"', idx);
+            if (end < 0) break;
+            results.add(json.substring(idx, end));
+            start = end + 1;
+        }
+        return results;
     }
 
     /**
