@@ -19,6 +19,7 @@ public class ScannerEngine {
 
     private final boolean verbose;
     private final boolean deep;
+    private int lastDedupCount = 0;
     private final PomScanner pomScanner;
     private final PomXmlScanner pomXmlScanner;
     private final ManifestScanner manifestScanner;
@@ -100,8 +101,14 @@ public class ScannerEngine {
             .filter(e -> e.getGroupId() == null || e.getArtifactId() == null)
             .forEach(result::add);
 
-        log("After dedup: " + result.size() + " (removed " + (entries.size() - result.size()) + " duplicates)");
+        lastDedupCount = entries.size() - result.size();
+        log("After dedup: " + result.size() + " (removed " + lastDedupCount + " duplicates)");
         return result;
+    }
+
+    /** Returns how many duplicates were merged in the last dedup call. */
+    public int getLastDedupCount() {
+        return lastDedupCount;
     }
 
     /**

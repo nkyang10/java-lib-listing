@@ -1,26 +1,32 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## [1.1.0] — 2026-06-17
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/),
-and this project adheres to [Semantic Versioning](https://semver.org/).
+### Added
+- **`--json` output mode** — Machine-readable JSON output for CI/CD pipeline consumption.
+  Includes tool metadata, full library list (displayName, groupId, artifactId, version, source, depth),
+  and summary by source type.
+- **Dedup count in summary** — Text report now shows `Duplicates merged: N` when duplicates are
+  removed during deduplication.
+- **`JsonFormatter`** — New output formatter producing valid JSON with proper character escaping.
+- **Test coverage** — 66 tests total (+9 new: 6 JsonFormatterTest unit tests + 3 IntegrationTest --json tests).
+
+### Changed
+- `TextFormatter.format()` now accepts `dedupCount` parameter for summary display.
+- `ScannerEngine` tracks `lastDedupCount` for deduplication statistics.
 
 ## [1.0.0] — 2026-06-17
 
 ### Added
-- Initial release
-- CLI tool to scan JAR/WAR files for library versions
-- Three scanner strategies:
-  - **PomScanner**: reads `META-INF/maven/**/pom.properties` (Maven metadata)
-  - **ManifestScanner**: reads `META-INF/MANIFEST.MF` (Implementation, Bundle, Specification versions + Class-Path)
-  - **EmbeddedJarScanner**: recursively scans fat/uber JARs (up to 5 levels deep)
-- Text-formatted report output with library table, manifest section, and summary
-- Deduplication: merges same `groupId:artifactId`, keeps highest version
-- Filtering: `--filter G:A` pattern, `--min-version` constraint
-- `--verbose` mode for scan progress
-- CLI flags: `--no-dedupe`, `--help`, `--version`
-- Exit codes: 0 (data found), 1 (empty), 2 (error)
-- Fat JAR build task (`./gradlew fatJar`)
-- 45 unit + integration tests
-- 5 sample JAR fixtures for testing
-- CI pipeline (GitHub Actions)
+- Initial release.
+- 7 library scanners:
+  - **PomScanner** — `META-INF/maven/**/pom.properties`
+  - **PomXmlScanner** — `META-INF/maven/**/pom.xml`
+  - **ManifestScanner** — `META-INF/MANIFEST.MF` (Implementation, Bundle, Specification, Class-Path)
+  - **DependenciesFileScanner** — `META-INF/DEPENDENCIES`
+  - **EmbeddedJarScanner** — recursive scan of embedded JARs/ZIPs (fat JARs)
+  - **DeepScanner** — class fingerprinting via Maven Central API (for shaded JARs)
+- CLI options: `--verbose`, `--no-dedupe`, `--deep`, `--min-version`, `--filter`
+- Text report with per-source summary.
+- 57 unit/integration tests covering all scanners and edge cases.
+- Fat JAR build via Gradle `fatJar` task.

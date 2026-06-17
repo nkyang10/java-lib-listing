@@ -102,6 +102,32 @@ class IntegrationTest {
     }
 
     @Test
+    void jsonFlag_outputsValidJson() {
+        String output = runToolWithArgs("--json", SAMPLES_DIR + "/sample1-simple-maven.jar");
+        assertThat(output).contains("\"tool\": \"jar-version-inspector\"");
+        assertThat(output).contains("\"version\": \"1.0.0\"");
+        assertThat(output).contains("\"libraryCount\":");
+        assertThat(output).contains("\"libraries\": [");
+        assertThat(output).startsWith("{\n");
+        assertThat(output).contains("\"fromPomProperties\":");
+        assertThat(output).contains("\n}\n");
+    }
+
+    @Test
+    void jsonFlag_outputsLibraryData() {
+        String output = runToolWithArgs("--json", SAMPLES_DIR + "/sample1-simple-maven.jar");
+        assertThat(output).contains("ch.qos.logback:logback-classic");
+        assertThat(output).contains("\"version\": \"1.4.14\"");
+        assertThat(output).contains("\"source\": \"POM_PROPERTIES\"");
+    }
+
+    @Test
+    void jsonFlag_withNoDedupe_dedupCountIsZero() {
+        String output = runToolWithArgs("--json", "--no-dedupe", SAMPLES_DIR + "/sample1-simple-maven.jar");
+        assertThat(output).contains("\"dedupCount\": 0");
+    }
+
+    @Test
     void filterFlag_filtersByPattern() {
         String output = runToolWithArgs("--filter", "jackson", SAMPLES_DIR + "/sample1-simple-maven.jar");
         assertThat(output).contains("jackson-databind");

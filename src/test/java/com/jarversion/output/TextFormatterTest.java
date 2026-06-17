@@ -19,7 +19,7 @@ class TextFormatterTest {
                 LibraryEntry.Source.POM_PROPERTIES, 0)
         );
 
-        String report = TextFormatter.format(entries, Paths.get("/path/to/app.jar"), 25_000_000L);
+        String report = TextFormatter.format(entries, Paths.get("/path/to/app.jar"), 25_000_000L, 0);
 
         assertThat(report).contains("Jar Version Inspector — Report");
         assertThat(report).contains("/path/to/app.jar");
@@ -33,7 +33,7 @@ class TextFormatterTest {
     void format_emptyEntries_containsNoDataMessage() {
         List<LibraryEntry> entries = List.of();
 
-        String report = TextFormatter.format(entries, Paths.get("/empty.jar"), 100L);
+        String report = TextFormatter.format(entries, Paths.get("/empty.jar"), 100L, 0);
 
         assertThat(report).contains("no library version data found");
     }

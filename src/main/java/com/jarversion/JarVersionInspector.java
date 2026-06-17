@@ -44,6 +44,9 @@ public class JarVersionInspector implements Callable<Integer> {
     @Option(names = {"--filter"}, description = "Only show library matching groupId:artifactId pattern")
     private String filter;
 
+    @Option(names = {"--json"}, description = "Output in JSON format (for CI/CD)")
+    private boolean json;
+
     public static void main(String[] args) {
         int exitCode = new CommandLine(new JarVersionInspector()).execute(args);
         System.exit(exitCode);
@@ -77,7 +80,13 @@ public class JarVersionInspector implements Callable<Integer> {
 
             // 6. Output
             long jarSize = Files.size(jarPath);
-            String report = TextFormatter.format(entries, jarPath, jarSize);
+            int dedupCount = noDedupe ? 0 : engine.getLastDedupCount();
+            String report;
+            if (json) {
+                report = com.jarversion.output.JsonFormatter.format(entries, jarPath, jarSize, dedupCount);
+            } else {
+                report = TextFormatter.format(entries, jarPath, jarSize, dedupCount);
+            }
             System.out.println(report);
 
             return entries.isEmpty() ? 1 : 0;

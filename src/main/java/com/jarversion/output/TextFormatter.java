@@ -19,7 +19,8 @@ public class TextFormatter {
     /**
      * Generate the full text report.
      */
-    public static String format(List<LibraryEntry> entries, Path jarPath, long jarSizeBytes) {
+    public static String format(List<LibraryEntry> entries, Path jarPath,
+                                 long jarSizeBytes, int dedupCount) {
         StringBuilder sb = new StringBuilder();
 
         // Header
@@ -95,6 +96,9 @@ public class TextFormatter {
         sb.append("─".repeat(80)).append("\n");
         sb.append(String.format("  %-30s %s\n", "Jar size:", formatSize(jarSizeBytes)));
         sb.append(String.format("  %-30s %d\n", "Total entries:", entries.size()));
+        if (dedupCount > 0) {
+            sb.append(String.format("  %-30s %d\n", "Duplicates merged:", dedupCount));
+        }
         sb.append(String.format("  %-30s %d\n", "From pom.properties:", fromPom));
         if (fromPomXml > 0) {
             sb.append(String.format("  %-30s %d\n", "From pom.xml:", fromPomXml));
