@@ -1,6 +1,26 @@
 # Changelog
 
-## [1.2.0] — 2026-06-17
+## [1.3.0] — 2026-06-17
+
+### Added
+- **DIFF mode** — Compare two JARs: `java-lib-listing old.jar new.jar`. Shows upgraded, downgraded,
+  added, removed, and unchanged libraries with version transitions. Supports `--json`, `--html`, `--color`.
+- **`--html` output** — Dark-themed GitHub-style HTML report for CI/CD dashboard or browser viewing.
+  Full support for single scan and DIFF reports.
+- **`--color` output** — ANSI color-coded terminal output (bold headers, green versions).
+- **`DiffResult`** model — Categorizes library changes into UPGRADED, DOWNGRADED, ADDED, REMOVED, UNCHANGED.
+- **`DiffFormatter`** — Text formatter with icons (⬆⬇🆕❌) for each change type, color support.
+- **`HtmlFormatter`** — Renders both single-scan and DIFF results as standalone HTML with dark theme.
+- **`JsonFormatter.formatDiff()`** — JSON DIFF output for CI/CD pipeline parsing.
+- **Tests** — 71 tests all green.
+
+### Changed
+- CLI now accepts 1 or 2 JAR paths. Single path = normal scan. Two paths = DIFF mode.
+- `@Parameters` updated with `arity = "0..1"` for optional second JAR path.
+- JarVersionInspector refactored into `runScan()` and `runDiff()` methods.
+
+### Fixed
+- None.
 
 ### Added
 - **Deep scanner performance overhaul**: 2-segment package grouping, known-library skipping, reduced from 200+ queries to ~28.

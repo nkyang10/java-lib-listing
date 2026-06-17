@@ -1,5 +1,8 @@
 package com.jarversion.output;
 
+import com.jarversion.DiffResult;
+import com.jarversion.DiffResult.ChangeType;
+import com.jarversion.DiffResult.DiffEntry;
 import com.jarversion.LibraryEntry;
 
 import java.nio.file.Path;
@@ -74,6 +77,46 @@ public class JsonFormatter {
         sb.append("    \"fromDeepScan\": ").append(fromDeep).append("\n");
         sb.append("  }\n");
 
+        sb.append("}\n");
+        return sb.toString();
+    }
+
+    /**
+     * Generate JSON DIFF report for CI/CD consumption.
+     */
+    public static String formatDiff(DiffResult diff, Path jarPath1, Path jarPath2) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\n");
+        sb.append("  \"tool\": \"jar-version-inspector\",\n");
+        sb.append("  \"version\": \"1.3.0\",\n");
+        sb.append("  \"mode\": \"diff\",\n");
+        sb.append("  \"sourceOld\": \"").append(escapeJson(jarPath1.toAbsolutePath().normalize().toString())).append("\",\n");
+        sb.append("  \"sourceNew\": \"").append(escapeJson(jarPath2.toAbsolutePath().normalize().toString())).append("\",\n");
+        sb.append("  \"scanned\": \"")
+            .append(LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")))
+            .append("\",\n");
+        sb.append("  \"libraryCountOld\": ").append(diff.getLibraryCountOld()).append(",\n");
+        sb.append("  \"libraryCountNew\": ").append(diff.getLibraryCountNew()).append(",\n");
+        sb.append("  \"upgraded\": ").append(diff.getByType(ChangeType.UPGRADED).size()).append(",\n");
+        sb.append("  \"downgraded\": ").append(diff.getByType(ChangeType.DOWNGRADED).size()).append(",\n");
+        sb.append("  \"added\": ").append(diff.getByType(ChangeType.ADDED).size()).append(",\n");
+        sb.append("  \"removed\": ").append(diff.getByType(ChangeType.REMOVED).size()).append(",\n");
+        sb.append("  \"unchanged\": ").append(diff.getByType(ChangeType.UNCHANGED).size()).append(",\n");
+        sb.append("  \"changes\": [\n");
+        for (int i = 0; i < diff.getEntries().size(); i++) {
+            DiffEntry e = diff.getEntries().get(i);
+            sb.append("    {\n");
+            sb.append("      \"displayName\": \"").append(escapeJson(e.getDisplayName())).append("\",\n");
+            sb.append("      \"type\": \"").append(e.getType().name().toLowerCase()).append("\",\n");
+            sb.append("      \"oldVersion\": \"").append(escapeJson(
+                e.getOldVersion() != null ? e.getOldVersion() : "")).append("\",\n");
+            sb.append("      \"newVersion\": \"").append(escapeJson(
+                e.getNewVersion() != null ? e.getNewVersion() : "")).append("\"\n");
+            sb.append("    }");
+            if (i < diff.getEntries().size() - 1) sb.append(",");
+            sb.append("\n");
+        }
+        sb.append("  ]\n");
         sb.append("}\n");
         return sb.toString();
     }

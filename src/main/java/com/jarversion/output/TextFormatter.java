@@ -118,4 +118,32 @@ public class TextFormatter {
         if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
         return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
     }
+
+    // ── Color output ──
+
+    private static final String ANSI_RESET = "\u001B[0m";
+    private static final String ANSI_GREEN = "\u001B[32m";
+    private static final String ANSI_CYAN = "\u001B[36m";
+    private static final String ANSI_YELLOW = "\u001B[33m";
+    private static final String ANSI_BOLD = "\u001B[1m";
+
+    /** Format with ANSI color codes for terminal. */
+    public static String formatColor(List<LibraryEntry> entries, Path jarPath,
+                                      long jarSizeBytes, int dedupCount) {
+        String plain = format(entries, jarPath, jarSizeBytes, dedupCount);
+
+        // Color headers
+        plain = plain.replace("Jar Version Inspector",
+            ANSI_BOLD + "Jar Version Inspector" + ANSI_RESET);
+        plain = plain.replace("Summary:",
+            ANSI_BOLD + ANSI_CYAN + "Summary:" + ANSI_RESET);
+        plain = plain.replace("Libraries (",
+            ANSI_BOLD + "Libraries (" + ANSI_RESET);
+
+        // Color version numbers (green)
+        plain = plain.replaceAll("(\\d+\\.\\d+[\\w.-]*)",
+            ANSI_GREEN + "$1" + ANSI_RESET);
+
+        return plain;
+    }
 }
