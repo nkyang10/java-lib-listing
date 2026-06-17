@@ -23,6 +23,15 @@
 - 合併重複 library（相同 group:artifact 去最新 version）
 - 支援彩色 terminal output（可選，future）
 
+## 已實現功能（v1.1.0+）
+
+- `--json` — JSON 格式輸出（for CI/CD pipeline）
+- `--no-dedupe` — 停用自動合併重複 libraries
+- `--min-version X` — 只顯示 version >= X 嘅 library
+- `--filter G:A` — 只顯示 match groupId:artifactId 嘅 library
+- `--verbose` — 顯示 scan 過程細節
+- `--deep` — 啟用 class fingerprinting（shaded JAR 專用）
+
 ## 非功能性要求
 
 - 支援 JAR 大過 500MB（streaming 讀取，唔可以全 load 入 memory）
