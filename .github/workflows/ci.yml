@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+    tags: [ "v*" ]
+  pull_request:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: [ 17, 21 ]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Java ${{ matrix.java }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java }}
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
+
+    - name: Build with Gradle
+      run: ./gradlew build --no-daemon
+
+    - name: Run tests
+      run: ./gradlew test --no-daemon
+
+    - name: Build fat JAR
+      run: ./gradlew fatJar --no-daemon
+
+    - name: Generate sample JARs
+      run: bash scripts/create-sample-jars.sh
+
+    - name: Integration test — sample JARs
+      run: |
+        for jar in scripts/sample-jars/*.jar; do
+          echo "Testing: $jar"
+          java -jar build/libs/java-lib-listing-1.0.0-fat.jar "$jar" > /dev/null && echo "  OK" || echo "  exit: $?"
+        done
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: java-lib-listing-java${{ matrix.java }}
+        path: build/libs/*.jar
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Java 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: 17
+        distribution: 'temurin'
+        cache: gradle
+
+    - name: Build fat JAR
+      run: ./gradlew fatJar --no-daemon
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: build/libs/*.jar
+        generate_release_notes: true
