@@ -46,6 +46,7 @@ public class TextFormatter {
             .filter(e -> e.getSource() == LibraryEntry.Source.POM_PROPERTIES
                 || e.getSource() == LibraryEntry.Source.POM_XML
                 || e.getSource() == LibraryEntry.Source.DEPENDENCIES_FILE
+                || e.getSource() == LibraryEntry.Source.DEEP_SCAN
                 || e.getSource() == LibraryEntry.Source.EMBEDDED_JAR)
             .collect(Collectors.toList());
 

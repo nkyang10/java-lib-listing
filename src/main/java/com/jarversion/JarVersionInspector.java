@@ -35,6 +35,9 @@ public class JarVersionInspector implements Callable<Integer> {
     @Option(names = {"--no-dedupe"}, description = "Disable duplicate merge (default: enabled)")
     private boolean noDedupe;
 
+    @Option(names = {"--deep"}, description = "Enable deep class fingerprinting via Maven Central (for shaded/uber JARs)")
+    private boolean deep;
+
     @Option(names = {"--min-version"}, description = "Only show libraries with version >= specified")
     private String minVersion;
 
@@ -53,7 +56,7 @@ public class JarVersionInspector implements Callable<Integer> {
             validateInput();
 
             // 2. Run scan
-            ScannerEngine engine = new ScannerEngine(verbose);
+            ScannerEngine engine = new ScannerEngine(verbose, deep);
             List<LibraryEntry> entries = engine.scan(jarPath);
 
             // 3. Deduplicate if enabled

@@ -52,6 +52,7 @@ public class LibraryEntry {
         MANIFEST_SPECIFICATION,
         MANIFEST_CLASS_PATH,
         DEPENDENCIES_FILE,
+        DEEP_SCAN,
         EMBEDDED_JAR
     }
 

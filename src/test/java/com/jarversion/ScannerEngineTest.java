@@ -13,7 +13,7 @@ class ScannerEngineTest {
 
     @Test
     void deduplicate_mergesSameLibrary_keepsHighestVersion() {
-        ScannerEngine engine = new ScannerEngine(false);
+        ScannerEngine engine = new ScannerEngine(false, false);
 
         List<LibraryEntry> entries = List.of(
             new LibraryEntry("com.example", "lib", "1.0.0", LibraryEntry.Source.POM_PROPERTIES, 0),
@@ -30,7 +30,7 @@ class ScannerEngineTest {
 
     @Test
     void deduplicate_preservesDifferentLibraries() {
-        ScannerEngine engine = new ScannerEngine(false);
+        ScannerEngine engine = new ScannerEngine(false, false);
 
         List<LibraryEntry> entries = List.of(
             new LibraryEntry("com.a", "lib-a", "1.0", LibraryEntry.Source.POM_PROPERTIES, 0),
@@ -43,7 +43,7 @@ class ScannerEngineTest {
 
     @Test
     void deduplicate_preservesNullGroupEntries() {
-        ScannerEngine engine = new ScannerEngine(false);
+        ScannerEngine engine = new ScannerEngine(false, false);
 
         List<LibraryEntry> entries = List.of(
             new LibraryEntry("com.a", "lib-a", "1.0", LibraryEntry.Source.POM_PROPERTIES, 0),
@@ -56,7 +56,7 @@ class ScannerEngineTest {
 
     @Test
     void sort_ordersByName() {
-        ScannerEngine engine = new ScannerEngine(false);
+        ScannerEngine engine = new ScannerEngine(false, false);
 
         List<LibraryEntry> entries = List.of(
             new LibraryEntry("z", "z-lib", "1.0", LibraryEntry.Source.POM_PROPERTIES, 0),
@@ -70,7 +70,7 @@ class ScannerEngineTest {
 
     @Test
     void filterByMinVersion_filtersCorrectly() {
-        ScannerEngine engine = new ScannerEngine(false);
+        ScannerEngine engine = new ScannerEngine(false, false);
 
         List<LibraryEntry> entries = List.of(
             new LibraryEntry("com.a", "lib-a", "1.0", LibraryEntry.Source.POM_PROPERTIES, 0),
@@ -86,7 +86,7 @@ class ScannerEngineTest {
 
     @Test
     void filterByGA_filtersByPattern() {
-        ScannerEngine engine = new ScannerEngine(false);
+        ScannerEngine engine = new ScannerEngine(false, false);
 
         List<LibraryEntry> entries = List.of(
             new LibraryEntry("com.fasterxml.jackson.core", "jackson-databind", "2.15.3",

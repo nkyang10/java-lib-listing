@@ -1,5 +1,6 @@
 package com.jarversion;
 
+import com.jarversion.scanner.DeepScanner;
 import com.jarversion.scanner.DependenciesFileScanner;
 import com.jarversion.scanner.EmbeddedJarScanner;
 import com.jarversion.scanner.ManifestScanner;
@@ -17,19 +18,23 @@ import java.util.stream.Collectors;
 public class ScannerEngine {
 
     private final boolean verbose;
+    private final boolean deep;
     private final PomScanner pomScanner;
     private final PomXmlScanner pomXmlScanner;
     private final ManifestScanner manifestScanner;
     private final DependenciesFileScanner dependenciesFileScanner;
     private final EmbeddedJarScanner embeddedJarScanner;
+    private final DeepScanner deepScanner;
 
-    public ScannerEngine(boolean verbose) {
+    public ScannerEngine(boolean verbose, boolean deep) {
         this.verbose = verbose;
+        this.deep = deep;
         this.pomScanner = new PomScanner();
         this.pomXmlScanner = new PomXmlScanner();
         this.manifestScanner = new ManifestScanner();
         this.dependenciesFileScanner = new DependenciesFileScanner();
         this.embeddedJarScanner = new EmbeddedJarScanner();
+        this.deepScanner = new DeepScanner(verbose);
     }
 
     /**
@@ -59,6 +64,12 @@ public class ScannerEngine {
         // Stage 5: Embedded JARs
         log("Scanning embedded JARs...");
         allEntries.addAll(embeddedJarScanner.scan(jarPath));
+
+        // Stage 6: Deep class fingerprinting (only if --deep flag set)
+        if (deep) {
+            log("Running deep class fingerprinting (Maven Central)...");
+            allEntries.addAll(deepScanner.scan(jarPath));
+        }
 
         log("Total raw entries: " + allEntries.size());
         return allEntries;

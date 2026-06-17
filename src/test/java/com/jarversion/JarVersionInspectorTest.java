@@ -71,7 +71,7 @@ class JarVersionInspectorTest {
 
     @Test
     void scannerEngine_compareVersions() {
-        ScannerEngine engine = new ScannerEngine(false);
+        ScannerEngine engine = new ScannerEngine(false, false);
         // Test via scannerEngine's dedup method or just verify the logic exists
         assertDoesNotThrow(() -> engine.sort(java.util.Collections.emptyList()));
     }
