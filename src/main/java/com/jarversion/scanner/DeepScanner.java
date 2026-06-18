@@ -104,15 +104,7 @@ public class DeepScanner {
             String groupPrefix = group.getKey();
             List<String> classes = group.getValue();
 
-            log("[" + groupNum + "/" + queryGroups.size() + "] Querying: " + groupPrefix
-                + " (" + classes.size() + " classes)");
-
-            if (queried >= MAX_QUERIES) {
-                log("Reached max queries (" + MAX_QUERIES + "), stopping");
-                break;
-            }
-
-            // Check cache by group key
+            // Check cache first — doesn't count toward query limit
             if (cache.containsKey(groupPrefix)) {
                 LibraryEntry cached = cache.get(groupPrefix);
                 if (cached != null) {
@@ -122,11 +114,19 @@ public class DeepScanner {
                 continue;
             }
 
+            if (queried >= MAX_QUERIES) {
+                log("Reached max queries (" + MAX_QUERIES + "), stopping");
+                break;
+            }
+
+            log("[" + groupNum + "/" + queryGroups.size() + "] Querying: " + groupPrefix
+                + " (" + classes.size() + " classes)");
+
             LibraryEntry identified = identifyLibrary(jarPath, classes);
+            queried++;
             if (identified != null) {
                 results.add(identified);
                 cache.put(groupPrefix, identified);
-                queried++;
                 log("  → " + identified.getDisplayName() + ":" + identified.getVersion());
             } else {
                 cache.put(groupPrefix, null);
@@ -155,9 +155,9 @@ public class DeepScanner {
                 continue;
             }
 
-            // Skip stdlib
+            // Skip stdlib or known non-library packages
             String twoSeg = getTwoSegmentPrefix(pkg);
-            if ("__SKIP__".equals(PACKAGE_TO_LIBRARY.get(twoSeg))) {
+            if (isSkipPackage(twoSeg) || isSkipPackage(getFirstSegment(pkg))) {
                 log("  Skip (stdlib): " + pkg);
                 continue;
             }
@@ -193,6 +193,22 @@ public class DeepScanner {
     }
 
     /**
+     * Get the first segment of a package name.
+     * e.g. javafx.scene → javafx, infrasys.gourmate4g → infrasys
+     */
+    private static String getFirstSegment(String pkg) {
+        int dot = pkg.indexOf('.');
+        return dot < 0 ? pkg : pkg.substring(0, dot);
+    }
+
+    /**
+     * Check if a package prefix should be skipped (stdlib, custom code, etc.).
+     */
+    private static boolean isSkipPackage(String prefix) {
+        return "__SKIP__".equals(PACKAGE_TO_LIBRARY.get(prefix));
+    }
+
+    /**
      * Extract .class files from JAR, grouped by top-level package prefix.
      */
     Map<String, List<String>> extractClassFiles(Path jarPath) throws IOException {
@@ -206,7 +222,8 @@ public class DeepScanner {
                 String name = entry.getName();
 
                 if (!name.endsWith(".class") || name.startsWith("module-info")
-                    || name.contains("$")) {
+                    || name.contains("$")
+                    || name.startsWith("META-INF/versions/")) {
                     continue;
                 }
 
@@ -458,8 +475,8 @@ public class DeepScanner {
         HttpURLConnection conn = (HttpURLConnection) uri.toURL().openConnection();
         conn.setRequestMethod("GET");
         conn.setRequestProperty("User-Agent", "JavaLibListing/1.0");
-        conn.setConnectTimeout(5000);
-        conn.setReadTimeout(5000);
+        conn.setConnectTimeout(2000);
+        conn.setReadTimeout(2000);
 
         try (InputStream is = conn.getResponseCode() == 200
             ? conn.getInputStream() : conn.getErrorStream()) {
