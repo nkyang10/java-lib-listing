@@ -266,7 +266,7 @@ Regenerate with: `bash scripts/create-sample-jars.sh`
 
 ## For AI Coding Assistants
 
-This repository includes `AGENTS.md` — an AI-friendly instruction file that helps coding agents (Claude Code, Copilot, Codex, OpenCode, etc.) understand the project architecture, coding conventions, and testing expectations. See [AGENTS.md](AGENTS.md) for details.
+This repository includes `AGENTS.md` — an AI-friendly instruction file that helps coding agents understand the project architecture, coding conventions, and testing expectations. See [AGENTS.md](AGENTS.md) for details.
 
 ## Contributing
 
