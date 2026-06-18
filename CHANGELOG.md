@@ -1,6 +1,27 @@
 # Changelog
 
-## [1.3.0] — 2026-06-17
+## [1.4.0] — 2026-06-18
+
+### Added
+- **`--tree` mode** — Dependency reference stack view. Shows which JAR files reference which libraries,
+  with embedded libraries grouped under their containing JAR filenames. Uses box-drawing characters
+  (├── └── │) for tree hierarchy.
+- **`TreeFormatter`** — New output formatter that builds a tree from `depth` + `parentName` data.
+  Supports `--tree --color` for ANSI output.
+- **`parentName` field on `LibraryEntry`** — Tracks which embedded JAR (zip entry path) a library
+  was found inside, enabling parent-child tree reconstruction.
+- **`EmbeddedJarScanner` parent tracking** — Now passes the containing JAR's filename as `parentName`
+  to all discovered entries.
+- **Tests** — 11 `TreeFormatterTest` tests (empty, flat, nested, multi-parent, color, dedup, buildTree).
+  82 tests total all green.
+
+### Changed
+- `LibraryEntry` constructor overloaded: `(g, a, v, source, depth)` and `(g, a, v, source, depth, parentName)`.
+- `JarVersionInspector.runScan()` now routes to `TreeFormatter` when `--tree` is set.
+- `AGENTS.md` updated with tree mode documentation and formatter table.
+- `SPEC.md` — FR-08 added for `--tree` spec.
+- `README.md` merge conflict resolved, tree mode example added.
+- Version bumped to 1.4.0.
 
 ### Added
 - **DIFF mode** — Compare two JARs: `java-lib-listing old.jar new.jar`. Shows upgraded, downgraded,

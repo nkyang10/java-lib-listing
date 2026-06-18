@@ -25,7 +25,7 @@ import java.util.concurrent.Callable;
 @Command(
     name = "jar-version-inspector",
     mixinStandardHelpOptions = true,
-    version = "1.3.0",
+    version = "1.4.0",
     description = "Scan JAR files and list all embedded library versions."
 )
 public class JarVersionInspector implements Callable<Integer> {
