@@ -1,6 +1,7 @@
 package com.jarversion.output;
 
 import com.jarversion.LibraryEntry;
+import com.jarversion.VersionUtils;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -43,7 +44,7 @@ public class TextFormatter {
         long fromEmbedded = entries.stream()
             .filter(e -> e.getSource() == LibraryEntry.Source.EMBEDDED_JAR).count();
 
-        List<LibraryEntry> pomEntries = entries.stream()
+        List<LibraryEntry> structuredEntries = entries.stream()
             .filter(e -> e.getSource() == LibraryEntry.Source.POM_PROPERTIES
                 || e.getSource() == LibraryEntry.Source.POM_XML
                 || e.getSource() == LibraryEntry.Source.DEPENDENCIES_FILE
@@ -55,17 +56,16 @@ public class TextFormatter {
             .filter(e -> e.getSource().name().startsWith("MANIFEST_"))
             .collect(Collectors.toList());
 
-        // Detect how many were deduplicated vs raw
-        long totalListed = pomEntries.size() + manifestEntries.size();
+        long totalListed = structuredEntries.size() + manifestEntries.size();
 
         sb.append("Libraries (").append(totalListed).append(" found)");
         sb.append(":\n");
         sb.append("─".repeat(80)).append("\n");
 
-        if (pomEntries.isEmpty() && manifestEntries.isEmpty()) {
+        if (structuredEntries.isEmpty() && manifestEntries.isEmpty()) {
             sb.append("  (no library version data found)\n\n");
         } else {
-            for (LibraryEntry entry : pomEntries) {
+            for (LibraryEntry entry : structuredEntries) {
                 String indent = "  ".repeat(entry.getDepth());
                 String label = entry.getSource() == LibraryEntry.Source.EMBEDDED_JAR ? " [embedded]" : "";
                 sb.append(String.format("  %s%-45s %-15s%s\n",
@@ -113,10 +113,7 @@ public class TextFormatter {
     }
 
     private static String formatSize(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
-        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
-        return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
+        return VersionUtils.formatSize(bytes);
     }
 
     // ── Color output ──

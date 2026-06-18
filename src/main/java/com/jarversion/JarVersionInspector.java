@@ -7,6 +7,7 @@ import picocli.CommandLine.Parameters;
 
 import com.jarversion.output.DiffFormatter;
 import com.jarversion.output.HtmlFormatter;
+import com.jarversion.output.JsonFormatter;
 import com.jarversion.output.TextFormatter;
 import com.jarversion.output.TreeFormatter;
 
@@ -109,7 +110,7 @@ public class JarVersionInspector implements Callable<Integer> {
 
         String report;
         if (json) {
-            report = com.jarversion.output.JsonFormatter.format(entries, path, jarSize, dedupCount);
+            report = JsonFormatter.format(entries, path, jarSize, dedupCount);
         } else if (html) {
             report = HtmlFormatter.format("Scan Report", entries, path, jarSize, dedupCount);
         } else if (tree) {
@@ -146,7 +147,7 @@ public class JarVersionInspector implements Callable<Integer> {
 
         String report;
         if (json) {
-            report = com.jarversion.output.JsonFormatter.formatDiff(diff, jarPath1, jarPath2);
+            report = JsonFormatter.formatDiff(diff, jarPath1, jarPath2);
         } else if (html) {
             report = HtmlFormatter.formatDiff(diff, jarPath1, jarPath2);
         } else if (color) {

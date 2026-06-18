@@ -1,6 +1,7 @@
 package com.jarversion.output;
 
 import com.jarversion.LibraryEntry;
+import com.jarversion.VersionUtils;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -275,9 +276,6 @@ public class TreeFormatter {
     }
 
     private static String formatSize(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
-        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
-        return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
+        return VersionUtils.formatSize(bytes);
     }
 }

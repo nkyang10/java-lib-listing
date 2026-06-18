@@ -79,6 +79,10 @@ public class DeepScanner {
 
             unknownCount++;
             log("  Unknown: " + pkg + " (" + entry.getValue().size() + " classes)");
+
+            // Produce a LibraryEntry so the package appears in output reports
+            results.add(new LibraryEntry(pkg, "", null,
+                LibraryEntry.Source.DEEP_SCAN, 0, null));
         }
 
         if (unknownCount > 0) {
