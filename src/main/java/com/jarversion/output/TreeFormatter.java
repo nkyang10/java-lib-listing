@@ -3,6 +3,8 @@ package com.jarversion.output;
 import com.jarversion.LibraryEntry;
 import com.jarversion.VersionUtils;
 
+import static com.jarversion.LibraryEntry.ROOT_PARENT;
+
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -118,10 +120,10 @@ public class TreeFormatter {
         // parentName format: ROOT/<depth1-filename>/<depth2-filename>/...
         // Insert each entry under the correct parent node
         Map<String, TreeNode> pathIndex = new HashMap<>();
-        pathIndex.put("ROOT", root);
+        pathIndex.put(ROOT_PARENT, root);
 
         for (LibraryEntry e : embeddedEntries) {
-            String parentPath = e.getParentName() != null ? e.getParentName() : "ROOT";
+            String parentPath = e.getParentName() != null ? e.getParentName() : ROOT_PARENT;
             String entryKey = parentPath + "/" + e.getDisplayName() + ":" + e.getVersion();
 
             TreeNode node = new TreeNode(e.getDisplayName(), e.getVersion(), e.getSource());
@@ -150,7 +152,7 @@ public class TreeFormatter {
      */
     private static TreeNode findOrCreateContainer(Map<String, TreeNode> pathIndex,
                                                     String parentName, TreeNode root) {
-        if (parentName == null || parentName.equals("ROOT")) return root;
+        if (parentName == null || parentName.equals(ROOT_PARENT)) return root;
 
         // Walk the path segments, creating container nodes as needed
         String[] segments = parentName.split("/");
@@ -158,7 +160,7 @@ public class TreeFormatter {
 
         for (int i = 0; i < segments.length; i++) {
             String seg = segments[i];
-            if (seg.isEmpty() || seg.equals("ROOT")) continue;
+            if (seg.isEmpty() || seg.equals(ROOT_PARENT)) continue;
 
             String pathSoFar = buildPath(segments, i);
 
@@ -176,10 +178,10 @@ public class TreeFormatter {
     }
 
     private static String buildPath(String[] segments, int upTo) {
-        StringBuilder sb = new StringBuilder("ROOT");
+        StringBuilder sb = new StringBuilder(ROOT_PARENT);
         for (int i = 0; i <= upTo; i++) {
             String seg = segments[i];
-            if (!seg.isEmpty() && !seg.equals("ROOT")) {
+            if (!seg.isEmpty() && !seg.equals(ROOT_PARENT)) {
                 sb.append("/").append(seg);
             }
         }

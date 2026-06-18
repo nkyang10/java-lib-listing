@@ -113,7 +113,7 @@ public class ScannerEngine {
             List<LibraryEntry> sameLib = group.getValue();
             // Pick the entry with the highest version (string comparison)
             LibraryEntry best = sameLib.stream()
-                .min((a, b) -> compareVersions(b.getVersion(), a.getVersion()))
+                .min((a, b) -> VersionUtils.compareVersions(b.getVersion(), a.getVersion()))
                 .orElse(sameLib.get(0));
             result.add(best);
         }
@@ -139,7 +139,7 @@ public class ScannerEngine {
     public List<LibraryEntry> filterByMinVersion(List<LibraryEntry> entries, String minVersion) {
         log("Filtering by min version: " + minVersion);
         return entries.stream()
-            .filter(e -> e.getVersion() != null && compareVersions(e.getVersion(), minVersion) >= 0)
+            .filter(e -> e.getVersion() != null && VersionUtils.compareVersions(e.getVersion(), minVersion) >= 0)
             .collect(Collectors.toList());
     }
 
@@ -162,10 +162,6 @@ public class ScannerEngine {
             .sorted(Comparator.comparing(LibraryEntry::getDisplayName)
                 .thenComparing(LibraryEntry::getDepth))
             .collect(Collectors.toList());
-    }
-
-    private int compareVersions(String a, String b) {
-        return VersionUtils.compareVersions(a, b);
     }
 
     private void log(String msg) {

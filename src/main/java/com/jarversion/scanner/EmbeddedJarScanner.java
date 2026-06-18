@@ -19,10 +19,11 @@ import java.util.zip.ZipFile;
 public class EmbeddedJarScanner {
 
     private static final int MAX_DEPTH = 5;
+    private static final int BUFFER_SIZE = 8192;
 
     public List<LibraryEntry> scan(Path jarPath) throws IOException {
         List<LibraryEntry> entries = new ArrayList<>();
-        scanRecursive(jarPath, 0, "ROOT", entries, new HashSet<>());
+        scanRecursive(jarPath, 0, LibraryEntry.ROOT_PARENT, entries, new HashSet<>());
         return entries;
     }
 
@@ -137,7 +138,7 @@ public class EmbeddedJarScanner {
             Path tempFile = Files.createTempFile("jvi-embedded-", ".jar");
             try (InputStream is = zip.getInputStream(entry);
                  OutputStream os = Files.newOutputStream(tempFile)) {
-                byte[] buffer = new byte[8192];
+                byte[] buffer = new byte[BUFFER_SIZE];
                 int read;
                 while ((read = is.read(buffer)) != -1) {
                     os.write(buffer, 0, read);

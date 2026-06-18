@@ -25,21 +25,23 @@ import java.util.zip.ZipFile;
  */
 public class DeepScanner {
 
+    private static final String SKIP_MARKER = "__SKIP__";
+
     // Known library prefixes that won't benefit from deep scan
     private static final Map<String, String> PACKAGE_TO_LIBRARY = new HashMap<>();
     static {
         // java/stdlib - always skip
-        PACKAGE_TO_LIBRARY.put("java", "__SKIP__");
-        PACKAGE_TO_LIBRARY.put("javax", "__SKIP__");
-        PACKAGE_TO_LIBRARY.put("sun", "__SKIP__");
-        PACKAGE_TO_LIBRARY.put("jdk", "__SKIP__");
-        PACKAGE_TO_LIBRARY.put("com.sun", "__SKIP__");
-        PACKAGE_TO_LIBRARY.put("oracle", "__SKIP__");
-        PACKAGE_TO_LIBRARY.put("org.w3c", "__SKIP__");
-        PACKAGE_TO_LIBRARY.put("org.xml", "__SKIP__");
-        PACKAGE_TO_LIBRARY.put("org.ietf", "__SKIP__");
-        PACKAGE_TO_LIBRARY.put("org.omg", "__SKIP__");
-        PACKAGE_TO_LIBRARY.put("org.jcp", "__SKIP__");
+        PACKAGE_TO_LIBRARY.put("java", SKIP_MARKER);
+        PACKAGE_TO_LIBRARY.put("javax", SKIP_MARKER);
+        PACKAGE_TO_LIBRARY.put("sun", SKIP_MARKER);
+        PACKAGE_TO_LIBRARY.put("jdk", SKIP_MARKER);
+        PACKAGE_TO_LIBRARY.put("com.sun", SKIP_MARKER);
+        PACKAGE_TO_LIBRARY.put("oracle", SKIP_MARKER);
+        PACKAGE_TO_LIBRARY.put("org.w3c", SKIP_MARKER);
+        PACKAGE_TO_LIBRARY.put("org.xml", SKIP_MARKER);
+        PACKAGE_TO_LIBRARY.put("org.ietf", SKIP_MARKER);
+        PACKAGE_TO_LIBRARY.put("org.omg", SKIP_MARKER);
+        PACKAGE_TO_LIBRARY.put("org.jcp", SKIP_MARKER);
     }
 
     private final boolean verbose;
@@ -100,9 +102,9 @@ public class DeepScanner {
     }
 
     private boolean isSkipPackage(String pkg) {
-        if ("__SKIP__".equals(PACKAGE_TO_LIBRARY.get(pkg))) return true;
-        if ("__SKIP__".equals(PACKAGE_TO_LIBRARY.get(getFirstSegment(pkg)))) return true;
-        return "__SKIP__".equals(PACKAGE_TO_LIBRARY.get(getTwoSegmentPrefix(pkg)));
+        if (SKIP_MARKER.equals(PACKAGE_TO_LIBRARY.get(pkg))) return true;
+        if (SKIP_MARKER.equals(PACKAGE_TO_LIBRARY.get(getFirstSegment(pkg)))) return true;
+        return SKIP_MARKER.equals(PACKAGE_TO_LIBRARY.get(getTwoSegmentPrefix(pkg)));
     }
 
     private static String getTwoSegmentPrefix(String pkg) {

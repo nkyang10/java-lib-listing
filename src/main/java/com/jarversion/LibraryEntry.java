@@ -7,6 +7,9 @@ import java.util.Objects;
  */
 public class LibraryEntry {
 
+    public static final String ROOT_PARENT = "ROOT";
+    public static final String UNKNOWN_LABEL = "unknown";
+
     private final String groupId;
     private final String artifactId;
     private final String version;
@@ -48,7 +51,7 @@ public class LibraryEntry {
         if (groupId != null && artifactId != null) {
             return groupId + ":" + artifactId;
         }
-        return artifactId != null ? artifactId : "unknown";
+        return artifactId != null ? artifactId : UNKNOWN_LABEL;
     }
 
     public enum Source {
