@@ -75,26 +75,6 @@ public class ScannerEngine {
             log("Known package prefixes to skip: " + knownPrefixes.size());
             DeepScanner scopedScanner = new DeepScanner(verbose, knownPrefixes);
             allEntries.addAll(scopedScanner.scan(jarPath));
-
-            // Stage 6b: Look up versions for entries with G:A but no version
-            // (e.g., from DEPENDENCIES scanner that found artifact name only)
-            int versionLookups = 0;
-            for (int i = 0; i < allEntries.size(); i++) {
-                LibraryEntry entry = allEntries.get(i);
-                if (entry.getGroupId() != null && entry.getArtifactId() != null
-                    && (entry.getVersion() == null || entry.getVersion().isEmpty())) {
-                    String version = lookupVersionByGA(entry.getGroupId(), entry.getArtifactId());
-                    if (version != null) {
-                        allEntries.set(i, new LibraryEntry(
-                            entry.getGroupId(), entry.getArtifactId(), version,
-                            entry.getSource(), entry.getDepth()));
-                        versionLookups++;
-                    }
-                }
-            }
-            if (versionLookups > 0) {
-                log("Looked up " + versionLookups + " versions by G:A");
-            }
         }
 
         log("Total raw entries: " + allEntries.size());
@@ -111,57 +91,13 @@ public class ScannerEngine {
             String g = entry.getGroupId();
             String a = entry.getArtifactId();
             if (g != null) {
-                // Add full groupId as known prefix
                 prefixes.add(g);
-                // Also add org.bouncycastle style (groupId = org.bouncycastle)
-                // Note: For entries with partial metadata, don't skip them
                 if (entry.getVersion() != null && a != null) {
-                    // Only skip fully-identified libraries
-                    prefixes.add(g + "." + a); // com.fasterxml.jackson.core
+                    prefixes.add(g + "." + a);
                 }
             }
         }
         return prefixes;
-    }
-
-    /**
-     * Look up the latest version of a library by G:A from Maven Central.
-     * Uses the search API to find the latest version of a known artifact.
-     */
-    private String lookupVersionByGA(String groupId, String artifactId) {
-        try {
-            String encodedG = java.net.URLEncoder.encode(groupId, java.nio.charset.StandardCharsets.UTF_8);
-            String encodedA = java.net.URLEncoder.encode(artifactId, java.nio.charset.StandardCharsets.UTF_8);
-            String url = "https://search.maven.org/solrsearch/select?q=g:"
-                + encodedG + "+AND+a:" + encodedA + "&rows=1&wt=json";
-            java.net.URI uri = java.net.URI.create(url);
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) uri.toURL().openConnection();
-            conn.setRequestMethod("GET");
-            conn.setRequestProperty("User-Agent", "JavaLibListing/1.0");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
-
-            String response;
-            try (java.io.InputStream is = conn.getResponseCode() == 200
-                ? conn.getInputStream() : conn.getErrorStream()) {
-                response = new String(is.readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
-            }
-
-            if (response == null || response.contains("\"numFound\":0")) return null;
-
-            // Extract latestVersion field
-            // Format: {"response":{"docs":[{"latestVersion":"1.80",...}]}}
-            String marker = "\"latestVersion\":\"";
-            int start = response.indexOf(marker);
-            if (start < 0) return null;
-            start += marker.length();
-            int end = response.indexOf('"', start);
-            if (end < 0) return null;
-            return response.substring(start, end);
-        } catch (Exception e) {
-            log("Version lookup failed for " + groupId + ":" + artifactId + " - " + e.getMessage());
-            return null;
-        }
     }
 
     /**
