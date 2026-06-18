@@ -8,6 +8,7 @@ import picocli.CommandLine.Parameters;
 import com.jarversion.output.DiffFormatter;
 import com.jarversion.output.HtmlFormatter;
 import com.jarversion.output.TextFormatter;
+import com.jarversion.output.TreeFormatter;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -59,6 +60,9 @@ public class JarVersionInspector implements Callable<Integer> {
     @Option(names = {"--color"}, description = "Enable colored terminal output")
     private boolean color;
 
+    @Option(names = {"--tree"}, description = "Show dependency tree view (by reference/embedding hierarchy)")
+    private boolean tree;
+
     public static void main(String[] args) {
         int exitCode = new CommandLine(new JarVersionInspector()).execute(args);
         System.exit(exitCode);
@@ -108,6 +112,8 @@ public class JarVersionInspector implements Callable<Integer> {
             report = com.jarversion.output.JsonFormatter.format(entries, path, jarSize, dedupCount);
         } else if (html) {
             report = HtmlFormatter.format("Scan Report", entries, path, jarSize, dedupCount);
+        } else if (tree) {
+            report = TreeFormatter.format(entries, path, jarSize, dedupCount);
         } else if (color) {
             report = TextFormatter.formatColor(entries, path, jarSize, dedupCount);
         } else {

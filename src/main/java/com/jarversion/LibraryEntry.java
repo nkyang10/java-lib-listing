@@ -12,13 +12,19 @@ public class LibraryEntry {
     private final String version;
     private final Source source;
     private final int depth;
+    private final String parentName;
 
     public LibraryEntry(String groupId, String artifactId, String version, Source source, int depth) {
+        this(groupId, artifactId, version, source, depth, null);
+    }
+
+    public LibraryEntry(String groupId, String artifactId, String version, Source source, int depth, String parentName) {
         this.groupId = groupId;
         this.artifactId = artifactId;
         this.version = version;
         this.source = source;
         this.depth = depth;
+        this.parentName = parentName;
     }
 
     public String getGroupId() { return groupId; }
@@ -26,6 +32,7 @@ public class LibraryEntry {
     public String getVersion() { return version; }
     public Source getSource() { return source; }
     public int getDepth() { return depth; }
+    public String getParentName() { return parentName; }
 
     /**
      * Unique key for deduplication: groupId:artifactId
@@ -64,16 +71,21 @@ public class LibraryEntry {
             && Objects.equals(groupId, that.groupId)
             && Objects.equals(artifactId, that.artifactId)
             && Objects.equals(version, that.version)
-            && source == that.source;
+            && source == that.source
+            && Objects.equals(parentName, that.parentName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(groupId, artifactId, version, source, depth);
+        return Objects.hash(groupId, artifactId, version, source, depth, parentName);
     }
 
     @Override
     public String toString() {
-        return getDisplayName() + ":" + version + " [" + source + "]";
+        String base = getDisplayName() + ":" + version + " [" + source + "]";
+        if (parentName != null) {
+            base += " parent=" + parentName;
+        }
+        return base;
     }
 }

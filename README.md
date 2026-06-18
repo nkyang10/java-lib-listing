@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-# java-lib-listing
-=======
 # Java Lib Listing
 
 [![Build](https://github.com/nkyang10/java-lib-listing/actions/workflows/ci.yml/badge.svg)](https://github.com/nkyang10/java-lib-listing/actions/workflows/ci.yml)
@@ -35,12 +32,16 @@ You've probably been here before:
 | **OSGi bundles** | Detects Bundle-Name/Bundle-Version from manifest |
 | **Auto-dedup** | Merges same library from multiple sources, keeps highest version |
 | **Filter** | `--filter G:A` to find specific libraries, `--min-version X` for version gating |
+| **Deep scan** | `--deep` class fingerprinting for shaded/uber JARs |
+| **Tree view** | `--tree` to see the dependency reference stack (which JAR references which) |
+| **DIFF mode** | Compare two JARs to see upgraded/downgraded/added/removed libraries |
+| **Output formats** | Plain text, `--json`, `--html`, `--color` |
 | **Verbose** | `--verbose` to see scan progress and what's being checked |
 | **Clean exit codes** | 0 = data, 1 = empty, 2 = error — CI-friendly |
 
 ## Quick Start
 
-### Option A: Download the fat JAR
+### Download the fat JAR
 
 ```bash
 curl -L -o java-lib-listing.jar \
@@ -49,7 +50,7 @@ curl -L -o java-lib-listing.jar \
 java -jar java-lib-listing.jar path/to/your.jar
 ```
 
-### Option B: Build from source
+### Build from source
 
 ```bash
 git clone https://github.com/nkyang10/java-lib-listing.git
@@ -59,7 +60,7 @@ cd java-lib-listing
 java -jar build/libs/java-lib-listing-1.0.0-fat.jar path/to/your.jar
 ```
 
-### Option C: Run with Gradle
+### Run with Gradle
 
 ```bash
 ./gradlew run --args="path/to/your.jar"
@@ -69,6 +70,7 @@ java -jar build/libs/java-lib-listing-1.0.0-fat.jar path/to/your.jar
 
 ```bash
 java -jar java-lib-listing.jar [options] <jar-path>
+java -jar java-lib-listing.jar [options] <old-jar> <new-jar>    # DIFF mode
 ```
 
 ### Options
@@ -77,8 +79,13 @@ java -jar java-lib-listing.jar [options] <jar-path>
 |------|-------------|
 | `-v`, `--verbose` | Show detailed scan progress |
 | `--no-dedupe` | Disable duplicate merging |
+| `--deep` | Enable deep class fingerprinting (shaded/uber JARs) |
 | `--min-version X` | Only show libraries >= X (e.g. `--min-version 3.0`) |
 | `--filter G:A` | Only show matching libraries (e.g. `--filter jackson`) |
+| `--json` | JSON format output (for CI/CD) |
+| `--html` | HTML format output |
+| `--color` | Colored terminal output |
+| `--tree` | Dependency tree view (by reference/embedding hierarchy) |
 | `-h`, `--help` | Print help and exit |
 | `--version` | Print version and exit |
 
@@ -122,6 +129,38 @@ Summary:
   From embedded JARs:            0
 ```
 
+### Tree view (──ref stack──)
+
+```bash
+$ java -jar java-lib-listing.jar --tree my-app.jar
+
+Jar Version Inspector — Dependency Tree
+========================================
+Source: /home/user/my-app.jar
+Scanned: 2026-06-17 14:30:00
+
+Libraries (14 found):
+────────────────────────────────────────────────────────────────────────────────
+  ├── ch.qos.logback:logback-classic  1.4.14
+  ├── com.fasterxml.jackson.core:jackson-databind  2.15.3
+  └── spring-boot-3.1.5.jar
+        ├── com.squareup.okhttp3:okhttp  4.12.0  [embedded]
+        ├── io.netty:netty-handler  4.1.100.Final  [embedded]
+        └── guava-32.1.3-jre.jar
+              └── com.google.guava:guava  32.1.3-jre  [embedded]
+
+Summary:
+────────────────────────────────────────────────────────────────────────────────
+  Jar size:                      24.5 MB
+  Total entries:                 14
+  Duplicates merged:             0
+  From pom.properties:           3
+  From MANIFEST.MF:              2
+  From embedded JARs:            9
+```
+
+The `--tree` mode groups embedded libraries under their containing JAR filenames, so you can see at a glance which JAR references which libraries.
+
 ### Scan a Spring Boot fat JAR
 
 ```bash
@@ -149,6 +188,33 @@ Libraries (2 found):
   com.fasterxml.jackson.dataformat:jackson-dataformat-xml  2.15.3 [embedded]
 ```
 
+### Compare two JARs (DIFF mode)
+
+```bash
+$ java -jar java-lib-listing.jar old-app.jar new-app.jar
+
+DIFF: old-app.jar vs new-app.jar
+
+⬆ Upgraded (3):
+  commons-codec:commons-codec               1.11 → 1.22.0
+  org.json:json                             20180813 → 20260522
+
+🆕 Added (12):
+  io.netty:netty-handler                    — → 4.2.14.Final
+  ...
+
+❌ Removed (2):
+  org.apache.httpcomponents:httpclient      4.5.13 → —
+
+
+Summary:
+  Old: 14 libraries  →  New: 26 libraries
+  ⬆ Upgraded:   3
+  ⬇ Downgraded: 0
+  🆕 Added:      12
+  ❌ Removed:    2
+```
+
 ### CI usage (exit code check)
 
 ```bash
@@ -173,9 +239,9 @@ fi
 
 ## Test Suite
 
-45 tests covering:
-- 6 unit test classes (scanner logic, deduplication, formatting)
-- 18 integration tests against 5 real sample JARs
+82 tests covering:
+- 7 unit test classes (scanner logic, deduplication, formatting, tree formatter)
+- Integration tests against 5 real sample JARs
 - Edge cases: empty JARs, missing manifests, corrupt paths, invalid files
 - Multi-level deep nesting (3 levels of embedded JARs)
 
@@ -194,13 +260,13 @@ Five sample JARs are included in `scripts/sample-jars/` for testing:
 | `sample2` | 2.0 KB | Fat JAR with 2 embedded libraries |
 | `sample3` | 1.1 KB | OSGi bundle with Bundle-Version |
 | `sample4` | 460 B | Empty JAR with no library data |
-| `sample5` | 4.0 KB | **Multi-level fat JAR** — 3 levels deep, Gradle + Maven + internal sources |
+| `sample5` | 4.0 KB | Multi-level fat JAR — 3 levels deep, Gradle + Maven + internal sources |
 
 Regenerate with: `bash scripts/create-sample-jars.sh`
 
 ## For AI Coding Assistants
 
-This repository includes `AGENTS.md` — an AI-friendly instruction file that helps coding agents (Claude Code, Copilot, Codex, etc.) understand the project architecture, coding conventions, and testing expectations. See [AGENTS.md](AGENTS.md) for details.
+This repository includes `AGENTS.md` — an AI-friendly instruction file that helps coding agents (Claude Code, Copilot, Codex, OpenCode, etc.) understand the project architecture, coding conventions, and testing expectations. See [AGENTS.md](AGENTS.md) for details.
 
 ## Contributing
 
@@ -209,4 +275,3 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, PR guidelines, and
 ## License
 
 MIT — see [LICENSE](LICENSE).
->>>>>>> ee14ebc (Initial release v1.0.0: JAR library version scanner)

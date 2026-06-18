@@ -90,10 +90,78 @@ Summary:
 ### FR-07: 進階選項（Optional）
 
 - `--verbose` / `-v` — 顯示詳細 scan 過程
-- `--json` — JSON 格式輸出（future）
+- `--json` — JSON 格式輸出
+- `--html` — HTML 格式輸出
+- `--color` — ANSI 彩色 terminal output
+- `--tree` — 依賴樹狀顯示
 - `--dedupe` — on/off（default on）
 - `--min-version` — 只顯示指定 version 以上嘅 library
 - `--filter G:A` — 只顯示特定 group:artifact
+- `--deep` — class fingerprinting（shaded/uber JAR）
+
+---
+
+### FR-08: Dependency Tree Mode (`--tree`)
+
+#### 目標
+將 flat library list 轉為 **樹狀引用圖**，一眼睇到邊個 JAR 引用咗邊啲 libraries（引用 stack），而唔係 flat organisation list。
+
+#### 輸入
+- `--tree` flag + JAR 路徑
+- Example: `java -jar java-lib-listing.jar --tree spring-boot-app.jar`
+
+#### 輸出格式（樹狀 + 容器分組）
+
+```
+Jar Version Inspector — Dependency Tree
+========================================
+Source: /home/user/app.jar
+Scanned: 2026-06-17 14:30:00
+
+Libraries (14 found):
+────────────────────────────────────────────────────────────────────────────────
+  ├── ch.qos.logback:logback-classic  1.4.14
+  ├── org.springframework.boot:spring-boot  3.1.5
+  └── spring-boot-3.1.5.jar
+        ├── com.squareup.okhttp3:okhttp  4.12.0  [embedded]
+        └── guava-32.1.3-jre.jar
+              └── com.google.guava:guava  32.1.3-jre  [embedded]
+
+Summary:
+────────────────────────────────────────────────────────────────────────────────
+  Jar size:                      24.5 MB
+  Total entries:                 14
+  Duplicates merged:             0
+  From pom.properties:           ...
+```
+
+#### 實作邏輯
+
+1. **parentName 追蹤** — `LibraryEntry` 新增 `parentName` field，記錄 embedded JAR 嘅 zip entry path
+2. **EmbeddedJarScanner** — 掃描 embedded JAR 時，pass zip entry name 做 `parentName`
+3. **TreeFormatter** — 用 `depth` + `parentName` 構建樹狀結構：
+   - Root node = scanned JAR
+   - Depth 0 entries = direct root children（POM / manifest 搵到嘅 libraries）
+   - Depth 1+ entries = 按 `parentName` 路徑分組，容器節點用 JAR filename
+   - 容器 vs library 節點：容器冇 version 同 source
+4. **輸出** — 用 box-drawing characters（├── └── │）顯示層次
+
+#### 輸出模式
+
+- `--tree` — 純文字樹狀
+- `--tree --color` — ANSI 彩色樹狀
+
+#### Tree 樹狀規則
+
+| 層級 | 內容 | 例子 |
+|------|------|------|
+| Root | Scanned JAR（隱含） | `app.jar` |
+| Level 0 | 直屬 library（POM / manifest） | `ch.qos.logback:logback-classic 1.4.14` |
+| Container | Embedded JAR filename（grouping only） | `spring-boot-3.1.5.jar` |
+| Level 1+ | Embedded libraries，按 parent container 分組 | `okhttp 4.12.0 [embedded]` |
+
+#### 互斥規則
+`--tree` 同 `--json` / `--html` / DIFF mode 互斥。`--tree` 優先於 `--color`（可疊加）。
 
 ---
 
@@ -145,6 +213,8 @@ Summary:
 | `ManifestScanner` | 掃描 META-INF/MANIFEST.MF |
 | `EmbeddedJarScanner` | 遞迴掃 embedded JAR/ZIP |
 | `TextFormatter` | 輸出純文字報告 |
+| `TreeFormatter` | 輸出依賴樹狀報告（按 parentName 分組） |
+| `JsonFormatter` | 輸出 JSON 格式（CI/CD 友好） |
 
 ### 3.3 Data Flow
 
