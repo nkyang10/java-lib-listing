@@ -45,7 +45,7 @@ You've probably been here before:
 
 ```bash
 curl -L -o java-lib-listing.jar \
-  https://github.com/nkyang10/java-lib-listing/releases/download/v1.0.0/java-lib-listing-1.0.0-fat.jar
+  https://github.com/nkyang10/java-lib-listing/releases/download/v1.4.0/java-lib-listing-1.4.0-fat.jar
 
 java -jar java-lib-listing.jar path/to/your.jar
 ```
@@ -57,7 +57,7 @@ git clone https://github.com/nkyang10/java-lib-listing.git
 cd java-lib-listing
 
 ./gradlew fatJar
-java -jar build/libs/java-lib-listing-1.0.0-fat.jar path/to/your.jar
+java -jar build/libs/java-lib-listing-1.4.0-fat.jar path/to/your.jar
 ```
 
 ### Run with Gradle
@@ -239,8 +239,8 @@ fi
 
 ## Test Suite
 
-82 tests covering:
-- 7 unit test classes (scanner logic, deduplication, formatting, tree formatter)
+97 tests covering:
+- 9 unit test classes (scanner logic, deduplication, formatting, tree formatter, version utils)
 - Integration tests against 5 real sample JARs
 - Edge cases: empty JARs, missing manifests, corrupt paths, invalid files
 - Multi-level deep nesting (3 levels of embedded JARs)

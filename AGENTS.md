@@ -10,8 +10,11 @@
 
 1. **Layered Scanner Pattern** — 每個 scanner 獨立負責一種 version 來源：
    - `PomScanner` — 讀取 `META-INF/maven/**/pom.properties`
+   - `PomXmlScanner` — 讀取 `META-INF/maven/**/pom.xml`
    - `ManifestScanner` — 讀取 `META-INF/MANIFEST.MF`
+   - `DependenciesFileScanner` — 讀取 `META-INF/DEPENDENCIES`（Apache projects）
    - `EmbeddedJarScanner` — 遞迴掃描 embedded JAR（fat JAR 場景），記錄 parentName 建立引用樹
+   - `DeepScanner` — class fingerprinting for shaded/uber JARs（只辨識 package，唔 guess version）
    - 新增 scanner 需實作 `scan(Path jarPath) → List<LibraryEntry>`
 2. **純 Java 標準庫為主** — 用 `java.util.jar`、`java.util.zip`，減少外部依賴
 3. **CLI first** — 用 picocli 做 command line parsing（唯一 major dependency）
@@ -60,7 +63,7 @@ When adding entries from EmbeddedJarScanner, always pass the parent zip entry pa
 - 合併重複 library（相同 group:artifact 去最新 version）
 - 支援 `--no-dedupe` 以保留原始 entries（tree mode 用得着）
 
-## 已實現功能（v1.3.0+）
+## 已實現功能（v1.4.0+）
 
 | Flag | Description |
 |------|-------------|

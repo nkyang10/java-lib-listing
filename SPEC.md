@@ -170,63 +170,85 @@ Summary:
 ### 3.1 Component Diagram
 
 ```
-┌─────────────────────────────────────────────┐
-│              JarVersionInspector (CLI)       │
-│  ┌─────────────┐                            │
-│  │  pom.xml     │  Picocli Command Line      │
-│  │  Gradle      │  ← args: path, options     │
-│  └─────────────┘                            │
-│         │                                    │
-│         ▼                                    │
-│  ┌─────────────────┐                        │
-│  │  ScannerEngine   │  Orchestrate scanners  │
-│  │  (entry point)   │                        │
-│  └──┬────┬────┬────┘                        │
-│     │    │    │                              │
-│     ▼    ▼    ▼                              │
-│  ┌───┐ ┌────┐ ┌────────┐                    │
-│  │Pom│ │Man │ │Embedded│  Layer per source   │
-│  │Sc │ │fest│ │JarSc   │                    │
-│  │an │ │Scan│ │anner   │                    │
-│  └───┘ └────┘ └────────┘                    │
-│     │         │       │                      │
-│     ▼         ▼       ▼                      │
-│  ┌──────────────────────┐                   │
-│  │  LibraryEntry (Model) │                   │
-│  └──────────────────────┘                   │
-│         │                                    │
-│         ▼                                    │
-│  ┌──────────────────┐                       │
-│  │  TextFormatter    │  Output rendering     │
-│  └──────────────────┘                       │
-└─────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────┐
+│              JarVersionInspector (CLI)             │
+│  ┌─────────────┐                                  │
+│  │  Picocli     │  Parses CLI args, flags         │
+│  └─────────────┘                                  │
+│         │                                          │
+│         ▼                                          │
+│  ┌─────────────────────┐                          │
+│  │    ScannerEngine     │  Orchestrates scanners   │
+│  │  (scan → dedup →    │                          │
+│  │   filter → sort)    │                          │
+│  └──┬──┬──┬──┬──┬──┬──┘                          │
+│     │  │  │  │  │  │                              │
+│     ▼  ▼  ▼  ▼  ▼  ▼                              │
+│  ┌──┐┌──┐┌──┐┌──┐┌──┐┌──┐                        │
+│  │Pom││Pom││Man││Dep││Emb││Deep│  Layer per src   │
+│  │Sc ││Xml││fest││end││ed ││Sc  │                  │
+│  └───┘└──┘└───┘└───┘└───┘└───┘                   │
+│     │    │    │    │    │    │                      │
+│     ▼    ▼    ▼    ▼    ▼    ▼                      │
+│  ┌────────────────────────────┐                   │
+│  │    LibraryEntry (Model)    │                    │
+│  │  + VersionUtils (shared)   │                    │
+│  └────────────────────────────┘                   │
+│         │                                          │
+│         ▼                                          │
+│  ┌────────────────────────────────────┐           │
+│  │  TextFormatter  TreeFormatter      │  Output    │
+│  │  JsonFormatter  HtmlFormatter      │  rendering │
+│  │  DiffFormatter  DiffResult         │            │
+│  └────────────────────────────────────┘           │
+└───────────────────────────────────────────────────┘
 ```
 
 ### 3.2 核心類別
 
 | Class | Responsibility |
 |-------|---------------|
-| `JarVersionInspector` | CLI entry point, 解析 args, 啟動 scan |
-| `ScannerEngine` | Orchestrate all scanners, 去重, 排序 |
-| `LibraryEntry` | Model: groupId, artifactId, version, source, depth |
+| `JarVersionInspector` | CLI entry point, 解析 args, 啟動 scan/diff |
+| `ScannerEngine` | Orchestrate all scanners, 去重, 排序, 過濾 |
+| `LibraryEntry` | Model: groupId, artifactId, version, source, depth, parentName |
+| `DiffResult` | DIFF mode model: UPGRADED/DOWNGRADED/ADDED/REMOVED/UNCHANGED |
+| `VersionUtils` | Shared utilities: version comparison, size formatting |
 | `PomScanner` | 掃描 META-INF/maven/**/pom.properties |
+| `PomXmlScanner` | 掃描 META-INF/maven/**/pom.xml |
 | `ManifestScanner` | 掃描 META-INF/MANIFEST.MF |
-| `EmbeddedJarScanner` | 遞迴掃 embedded JAR/ZIP |
-| `TextFormatter` | 輸出純文字報告 |
+| `DependenciesFileScanner` | 掃描 META-INF/DEPENDENCIES |
+| `EmbeddedJarScanner` | 遞迴掃 embedded JAR/ZIP（追蹤 parentName） |
+| `DeepScanner` | Class fingerprinting for shaded JAR（只辨識 unknown packages） |
+| `TextFormatter` | 輸出純文字報告（含 color variant） |
 | `TreeFormatter` | 輸出依賴樹狀報告（按 parentName 分組） |
-| `JsonFormatter` | 輸出 JSON 格式（CI/CD 友好） |
+| `JsonFormatter` | 輸出 JSON 格式（CI/CD 友好, 支援 diff） |
+| `HtmlFormatter` | 輸出 HTML 報告（dark theme, 支援 diff） |
+| `DiffFormatter` | 輸出 DIFF 文字報告（含 color variant） |
 
 ### 3.3 Data Flow
 
 ```
-JAR Path → JarVersionInspector (CLI)
+JAR Path(s) → JarVersionInspector (CLI)
+
+Single mode (1 path):
   → ScannerEngine.scan(path)
-    → PomScanner.scan(jarFS) → List<LibraryEntry>
-    → ManifestScanner.scan(jarFS) → List<LibraryEntry>
-    → EmbeddedJarScanner.scan(jarFS) → List<LibraryEntry>
-  → ScannerEngine.deduplicate(entries) → List<LibraryEntry>
+    → PomScanner.scan() → List<LibraryEntry>
+    → PomXmlScanner.scan() → List<LibraryEntry>
+    → ManifestScanner.scan() → List<LibraryEntry>
+    → DependenciesFileScanner.scan() → List<LibraryEntry>
+    → EmbeddedJarScanner.scan() → List<LibraryEntry> (recursive, tracks parentName)
+    → DeepScanner.scan() → List<LibraryEntry> (if --deep, skips known prefixes)
+  → ScannerEngine.deduplicate(entries) → List<LibraryEntry> (unless --no-dedupe)
+  → ScannerEngine.filterByMinVersion / filterByGA (optional)
   → ScannerEngine.sort(entries)
-  → TextFormatter.format(entries, stats) → String
+  → TextFormatter/TreeFormatter/JsonFormatter/HtmlFormatter.format(entries) → String
+  → System.out
+
+DIFF mode (2 paths):
+  → ScannerEngine.scan(path1) → deduplicate → sort
+  → ScannerEngine.scan(path2) → deduplicate → sort
+  → DiffResult.compute(old, new) → List<DiffEntry>
+  → DiffFormatter/JsonFormatter/HtmlFormatter.formatDiff(diff) → String
   → System.out
 ```
 
@@ -267,6 +289,8 @@ JAR Path → JarVersionInspector (CLI)
 ```
 jar-version-inspector/
 ├── AGENTS.md
+├── CHANGELOG.md
+├── CONTRIBUTING.md
 ├── SPEC.md
 ├── README.md
 ├── build.gradle.kts
@@ -278,6 +302,14 @@ jar-version-inspector/
 │       └── gradle-wrapper.properties
 ├── gradlew
 ├── gradlew.bat
+├── scripts/
+│   ├── create-sample-jars.sh
+│   └── sample-jars/
+│       ├── sample1-simple-maven.jar
+│       ├── sample2-fat-jar.jar
+│       ├── sample3-osgi-bundle.jar
+│       ├── sample4-empty-jar.jar
+│       └── sample5-complex-app.jar
 └── src/
     ├── main/
     │   ├── java/
@@ -286,12 +318,21 @@ jar-version-inspector/
     │   │           ├── JarVersionInspector.java
     │   │           ├── ScannerEngine.java
     │   │           ├── LibraryEntry.java
+    │   │           ├── DiffResult.java
+    │   │           ├── VersionUtils.java
     │   │           ├── scanner/
     │   │           │   ├── PomScanner.java
+    │   │           │   ├── PomXmlScanner.java
     │   │           │   ├── ManifestScanner.java
-    │   │           │   └── EmbeddedJarScanner.java
+    │   │           │   ├── DependenciesFileScanner.java
+    │   │           │   ├── EmbeddedJarScanner.java
+    │   │           │   └── DeepScanner.java
     │   │           └── output/
-    │   │               └── TextFormatter.java
+    │   │               ├── TextFormatter.java
+    │   │               ├── TreeFormatter.java
+    │   │               ├── JsonFormatter.java
+    │   │               ├── HtmlFormatter.java
+    │   │               └── DiffFormatter.java
     │   └── resources/
     │       └── (optional: log config)
     └── test/
@@ -299,8 +340,18 @@ jar-version-inspector/
             └── com/
                 └── jarversion/
                     ├── JarVersionInspectorTest.java
-                    └── scanner/
-                        ├── PomScannerTest.java
-                        ├── ManifestScannerTest.java
-                        └── EmbeddedJarScannerTest.java
+                    ├── ScannerEngineTest.java
+                    ├── IntegrationTest.java
+                    ├── VersionUtilsTest.java
+                    ├── scanner/
+                    │   ├── PomScannerTest.java
+                    │   ├── PomXmlScannerTest.java
+                    │   ├── ManifestScannerTest.java
+                    │   ├── DependenciesFileScannerTest.java
+                    │   ├── EmbeddedJarScannerTest.java
+                    │   └── DeepScannerTest.java
+                    └── output/
+                        ├── TextFormatterTest.java
+                        ├── TreeFormatterTest.java
+                        └── JsonFormatterTest.java
 ```

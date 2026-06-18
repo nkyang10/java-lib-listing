@@ -22,6 +22,12 @@
 - `SPEC.md` — FR-08 added for `--tree` spec.
 - `README.md` merge conflict resolved, tree mode example added.
 - Version bumped to 1.4.0.
+- **`--deep` mode simplified**: removed all version-guessing logic and Maven Central API queries.
+  DeepScanner now only identifies unknown class file packages and logs them; no HTTP calls are made.
+  The `--deep` flag simply enables class fingerprinting without network dependencies.
+
+### Removed
+- Version guessing from DeepScanner (no more Maven Central queries, SHA-1 cache, or `httpGet` calls).
 
 ### Added
 - **DIFF mode** — Compare two JARs: `java-lib-listing old.jar new.jar`. Shows upgraded, downgraded,
