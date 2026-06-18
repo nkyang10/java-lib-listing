@@ -25,7 +25,6 @@ public class ScannerEngine {
     private final ManifestScanner manifestScanner;
     private final DependenciesFileScanner dependenciesFileScanner;
     private final EmbeddedJarScanner embeddedJarScanner;
-    private final DeepScanner deepScanner;
 
     public ScannerEngine(boolean verbose, boolean deep) {
         this.verbose = verbose;
@@ -35,7 +34,6 @@ public class ScannerEngine {
         this.manifestScanner = new ManifestScanner();
         this.dependenciesFileScanner = new DependenciesFileScanner();
         this.embeddedJarScanner = new EmbeddedJarScanner();
-        this.deepScanner = new DeepScanner(verbose, Collections.emptySet());
     }
 
     /**
@@ -68,7 +66,7 @@ public class ScannerEngine {
 
         // Stage 6: Deep class fingerprinting (only if --deep flag set)
         if (deep) {
-            log("Running deep class fingerprinting (Maven Central)...");
+            log("Running deep class fingerprinting...");
             // Collect known package prefixes from already-found entries
             // so DeepScanner doesn't waste time on them
             Set<String> knownPrefixes = extractKnownPrefixes(allEntries);

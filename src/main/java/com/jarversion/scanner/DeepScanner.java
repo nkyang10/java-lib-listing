@@ -3,10 +3,7 @@ package com.jarversion.scanner;
 import com.jarversion.LibraryEntry;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.security.MessageDigest;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
@@ -28,8 +25,6 @@ import java.util.zip.ZipFile;
  */
 public class DeepScanner {
 
-    private static final String CACHE_PATH = System.getProperty("user.home")
-        + "/.java-lib-listing/deep-cache.json";
     // Known library prefixes that won't benefit from deep scan
     private static final Map<String, String> PACKAGE_TO_LIBRARY = new HashMap<>();
     static {
@@ -60,9 +55,9 @@ public class DeepScanner {
     }
 
     /**
-     * Deep-scan a JAR using class fingerprinting.
-     * Returns only entries already found by other scanners.
-     * The class analysis is used purely for logging/awareness.
+     * Deep-scan a JAR.
+     * Returns only entries already found by other scanners (no version guessing).
+     * Unknown packages are logged for user awareness.
      */
     public List<LibraryEntry> scan(Path jarPath) throws IOException {
         List<LibraryEntry> results = new ArrayList<>();
@@ -95,28 +90,17 @@ public class DeepScanner {
         return results;
     }
 
-    /**
-     * Check if a package prefix is already known via other scanners.
-     */
     private boolean isKnownPackage(String pkg) {
         return knownPrefixes.stream().anyMatch(known ->
             pkg.equals(known) || pkg.startsWith(known + "."));
     }
 
-    /**
-     * Check if a package prefix should be skipped (stdlib, custom code, etc.).
-     * Checks: exact match, 2-segment prefix, and first segment.
-     */
     private boolean isSkipPackage(String pkg) {
         if ("__SKIP__".equals(PACKAGE_TO_LIBRARY.get(pkg))) return true;
         if ("__SKIP__".equals(PACKAGE_TO_LIBRARY.get(getFirstSegment(pkg)))) return true;
-        // Also check 2-segment prefix (e.g. com.sun.jna → com.sun)
         return "__SKIP__".equals(PACKAGE_TO_LIBRARY.get(getTwoSegmentPrefix(pkg)));
     }
 
-    /**
-     * Get the first 2 segments of a package name.
-     */
     private static String getTwoSegmentPrefix(String pkg) {
         int firstDot = pkg.indexOf('.');
         if (firstDot < 0) return pkg;
@@ -125,17 +109,11 @@ public class DeepScanner {
         return pkg.substring(0, secondDot);
     }
 
-    /**
-     * Get the first segment of a package name.
-     */
     private static String getFirstSegment(String pkg) {
         int dot = pkg.indexOf('.');
         return dot < 0 ? pkg : pkg.substring(0, dot);
     }
 
-    /**
-     * Extract .class files from JAR, grouped by package prefix.
-     */
     Map<String, List<String>> extractClassFiles(Path jarPath) throws IOException {
         Map<String, List<String>> packageMap = new LinkedHashMap<>();
 
@@ -152,11 +130,9 @@ public class DeepScanner {
                     continue;
                 }
 
-                // Convert path to class name
                 String className = name.replace('/', '.')
                     .substring(0, name.length() - ".class".length());
 
-                // Extract package prefix
                 String pkg = getPackagePrefix(className);
                 if (pkg == null) continue;
 
@@ -167,11 +143,6 @@ public class DeepScanner {
         return packageMap;
     }
 
-    /**
-     * Get the package prefix (first 2 segments) of a class name.
-     * e.g. com.fasterxml.jackson.databind.ObjectMapper → com.fasterxml.jackson
-     *      okhttp3.Request → okhttp3
-     */
     static String getPackagePrefix(String className) {
         int firstDot = className.indexOf('.');
         if (firstDot < 0) return null;
