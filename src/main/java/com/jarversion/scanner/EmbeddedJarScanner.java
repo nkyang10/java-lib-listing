@@ -58,54 +58,56 @@ public class EmbeddedJarScanner {
             }
         }
 
-        // Scan each embedded JAR — record parent reference
-        for (int i = 0; i < embeddedJars.size(); i++) {
-            Path embedded = embeddedJars.get(i);
-            String childParentName = embeddedNames.get(i);
-            int nextDepth = depth + 1;
+        try {
+            // Scan each embedded JAR — record parent reference
+            for (int i = 0; i < embeddedJars.size(); i++) {
+                Path embedded = embeddedJars.get(i);
+                String childParentName = embeddedNames.get(i);
+                int nextDepth = depth + 1;
 
-            PomScanner pomScanner = new PomScanner();
-            PomXmlScanner pomXmlScanner = new PomXmlScanner();
-            ManifestScanner manifestScanner = new ManifestScanner();
-            DependenciesFileScanner dependenciesFileScanner = new DependenciesFileScanner();
+                PomScanner pomScanner = new PomScanner();
+                PomXmlScanner pomXmlScanner = new PomXmlScanner();
+                ManifestScanner manifestScanner = new ManifestScanner();
+                DependenciesFileScanner dependenciesFileScanner = new DependenciesFileScanner();
 
-            List<LibraryEntry> pomEntries = pomScanner.scan(embedded);
-            List<LibraryEntry> pomXmlEntries = pomXmlScanner.scan(embedded);
-            List<LibraryEntry> manifestEntries = manifestScanner.scan(embedded);
-            List<LibraryEntry> depsEntries = dependenciesFileScanner.scan(embedded);
+                List<LibraryEntry> pomEntries = pomScanner.scan(embedded);
+                List<LibraryEntry> pomXmlEntries = pomXmlScanner.scan(embedded);
+                List<LibraryEntry> manifestEntries = manifestScanner.scan(embedded);
+                List<LibraryEntry> depsEntries = dependenciesFileScanner.scan(embedded);
 
-            // Tag entries with depth + parent info
-            for (LibraryEntry e : pomEntries) {
-                results.add(new LibraryEntry(
-                    e.getGroupId(), e.getArtifactId(), e.getVersion(),
-                    LibraryEntry.Source.EMBEDDED_JAR, nextDepth, childParentName));
+                // Tag entries with depth + parent info
+                for (LibraryEntry e : pomEntries) {
+                    results.add(new LibraryEntry(
+                        e.getGroupId(), e.getArtifactId(), e.getVersion(),
+                        LibraryEntry.Source.EMBEDDED_JAR, nextDepth, childParentName));
+                }
+                for (LibraryEntry e : pomXmlEntries) {
+                    results.add(new LibraryEntry(
+                        e.getGroupId(), e.getArtifactId(), e.getVersion(),
+                        LibraryEntry.Source.EMBEDDED_JAR, nextDepth, childParentName));
+                }
+                for (LibraryEntry e : manifestEntries) {
+                    results.add(new LibraryEntry(
+                        e.getGroupId(), e.getArtifactId(), e.getVersion(),
+                        LibraryEntry.Source.EMBEDDED_JAR, nextDepth, childParentName));
+                }
+                for (LibraryEntry e : depsEntries) {
+                    results.add(new LibraryEntry(
+                        e.getGroupId(), e.getArtifactId(), e.getVersion(),
+                        LibraryEntry.Source.EMBEDDED_JAR, nextDepth, childParentName));
+                }
+
+                // Recurse into this embedded JAR's own embedded JARs
+                scanRecursive(embedded, nextDepth, childParentName, results, visited);
             }
-            for (LibraryEntry e : pomXmlEntries) {
-                results.add(new LibraryEntry(
-                    e.getGroupId(), e.getArtifactId(), e.getVersion(),
-                    LibraryEntry.Source.EMBEDDED_JAR, nextDepth, childParentName));
-            }
-            for (LibraryEntry e : manifestEntries) {
-                results.add(new LibraryEntry(
-                    e.getGroupId(), e.getArtifactId(), e.getVersion(),
-                    LibraryEntry.Source.EMBEDDED_JAR, nextDepth, childParentName));
-            }
-            for (LibraryEntry e : depsEntries) {
-                results.add(new LibraryEntry(
-                    e.getGroupId(), e.getArtifactId(), e.getVersion(),
-                    LibraryEntry.Source.EMBEDDED_JAR, nextDepth, childParentName));
-            }
-
-            // Recurse into this embedded JAR's own embedded JARs
-            scanRecursive(embedded, nextDepth, childParentName, results, visited);
-        }
-
-        // Cleanup temp files
-        for (Path embedded : embeddedJars) {
-            try {
-                Files.deleteIfExists(embedded);
-            } catch (IOException ignored) {
-                // Temp file cleanup is best-effort
+        } finally {
+            // Cleanup temp files — always run, even on error
+            for (Path embedded : embeddedJars) {
+                try {
+                    Files.deleteIfExists(embedded);
+                } catch (IOException ignored) {
+                    // Temp file cleanup is best-effort
+                }
             }
         }
     }
