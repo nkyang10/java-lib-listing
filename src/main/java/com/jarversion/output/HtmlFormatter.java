@@ -4,6 +4,7 @@ import com.jarversion.DiffResult;
 import com.jarversion.DiffResult.ChangeType;
 import com.jarversion.DiffResult.DiffEntry;
 import com.jarversion.LibraryEntry;
+import com.jarversion.VersionUtils;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -153,13 +154,14 @@ public class HtmlFormatter {
 
     private static String escapeHtml(String s) {
         if (s == null) return "";
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+        return s.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("\"", "&quot;")
+            .replace("'", "&#39;");
     }
 
     private static String formatSizeHtml(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
-        if (bytes < 1024 * 1024 * 1024) return String.format("%.1f MB", bytes / (1024.0 * 1024));
-        return String.format("%.1f GB", bytes / (1024.0 * 1024 * 1024));
+        return VersionUtils.formatSize(bytes);
     }
 }
